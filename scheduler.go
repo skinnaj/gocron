@@ -29,7 +29,8 @@ type Scheduler struct {
 	time     timeWrapper // wrapper around time.Time
 	executor *executor   // executes jobs passed via chan
 
-	tags map[string]struct{} // for storing tags when unique tags is set
+	tagsMutex sync.RWMutex
+	tags      map[string]struct{} // for storing tags when unique tags is set
 
 	updateJob       bool // so the scheduler knows to create a new job or update the current
 	waitForInterval bool // defaults jobs to waiting for first interval to start
@@ -530,6 +531,8 @@ func (s *Scheduler) RemoveByTag(tag string) error {
 	}
 
 	// Remove unique tag when exists
+	s.tagsMutex.Lock()
+	defer s.tagsMutex.Unlock()
 	delete(s.tags, tag)
 
 	for _, job := range jobs {
@@ -693,6 +696,8 @@ func (s *Scheduler) At(i interface{}) *Scheduler {
 func (s *Scheduler) Tag(t ...string) *Scheduler {
 	job := s.getCurrentJob()
 
+	s.tagsMutex.Lock()
+	defer s.tagsMutex.Unlock()
 	if s.tags != nil {
 		for _, tag := range t {
 			if _, ok := s.tags[tag]; ok {
